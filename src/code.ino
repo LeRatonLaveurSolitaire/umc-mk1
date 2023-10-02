@@ -1,4 +1,3 @@
-// Il reste à mettre en place la detection du 0 crossing point et du fire angle controle cf vidéo timer interrupt 
 
 #include <PID_v1.h>
 #include <LiquidCrystal_I2C.h>
@@ -7,29 +6,56 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-/*    pin 3 => sortie de l'octocopler le tacho
-      autre pin octocopler => Gnd
-      pin 2 => zero crossing
-      pin 4 et 5 codeur incrémentale
-      pin 7 => controle triac
+/*    
+
+Pinout Cheat Sheet
+
+A4 -> SDA
+A5 -> SCL
+D2 -> Zero Crossing Detection 
+D3 -> motor_speed
+D4 -> fire_pin
+D5 -> Encoder
+D6 -> Encoder
+D7 -> Encoder
+
 */
 
-int pin_mot = 7;  //pin control triac
-int etatA;
-int etatB;
-int k = 250;      //pas du codeur
-int a = 750;      //Vmin
-int b = 15000;    //Vmax
+/* Pinout Variables*/
 
+#define pin_ZCD 2
+#define pin_speed 3
+#define pin_fire 4
+
+#define encoder0PinA  5 
+#define encoder0PinB  7 
+#define pin_middle_enc  6
+
+
+/* Encoder variables*/
+
+int enc_step = 250;      //pas du codeur
+int enc_min = 0;      //Vmin
+int enc_max = 11000;    //Vmax
+
+
+/* PID Variables */
 
 float Kp = 1;
 float Ki = 0;
 float Kd = 0;
 
 
+/* Other variables */
+
 double timming;
 float t;
 bool overflowing =1;
+
+int etatA;
+int etatB;
+
+
 int mapping[101]={10000,9362,9096,8891,8718,8564,8424,8295,8174,8060,
                   7951,7847,7748,7651,7558,7468,7380,7294,7210,7128,
                   7048,6969,6891,6815,6740,6666,6593,6521,6450,6379,
@@ -43,25 +69,39 @@ int mapping[101]={10000,9362,9096,8891,8718,8564,8424,8295,8174,8060,
 
 double vitesse;
 double dimming = 1; //puissance apportée au moteur (entre 0 et 100) 0 = off 100 = max
-double target = a;
+double target = enc_min;
+
+/* Declaring PID object */
+
 PID myPID(&vitesse, &dimming, &target, Kp, Ki, Kd, DIRECT);
-#define encoder0PinA  4 //pin encoder A
-#define encoder0PinB  5 //pin encoder B
+
+
+
 
 void setup() {
+
+/* Configure I2C LCD screen*/
+
   lcd.init();
   lcd.backlight();
 
+
+/* Configure encoder pin and variable */
+
   pinMode(encoder0PinA, INPUT_PULLUP);
   pinMode(encoder0PinB, INPUT_PULLUP);
+  pinMode(pin_middle_enc, OUTPUT);
+
   etatA = digitalRead(encoder0PinA);
   etatB = digitalRead(encoder0PinB);
+
+/* Configure PID */
 
   myPID.SetMode(AUTOMATIC);
   myPID.SetOutputLimits(0, 100);
 
-  pinMode(3, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(3),rmp,RISING);
+  pinMode(pin_speed, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(pin_speed),rmp,RISING);
   TCCR1A = 0;
   TCCR1B = 0;
   TCCR1B |= (1 << CS12); //Prescaler 256
@@ -69,15 +109,15 @@ void setup() {
 }
 
 
+// Case of overflowing
 
 ISR(TIMER1_OVF_vect) {
-  overflowing = 1;
+  overflowing = 1; // if the timer reach it's limits, the speed is consider to be 0
 }
 
 
 
 void loop() {
-
   
   if (overflowing == 0){
     t = 120 / (timming/ 31250.00);
@@ -91,12 +131,17 @@ void loop() {
   myPID.Compute();
 }
 
+
+
+// speed reading function
+
 void rpm(){
-  timming = TCNT1;
-  TCNT1 = 0 ;
-  overflowing = 0;
+  timming = TCNT1; // Get timing for an 8th of a turn
+  TCNT1 = 0 ;      // Reset counter to 0
+  overflowing = 0; // Ensure the overflowing variable is 0
 }
 
+// LCD screen writing function
 
 void affiche() {
   lcd.clear();
@@ -112,27 +157,29 @@ void affiche() {
 }
 
 
+// Encoder reading function setting the motor RMP target
+
 void encode() {
   if (digitalRead(encoder0PinA) != etatA) {
     etatA = digitalRead(encoder0PinA);
     if (etatA == HIGH) {
       if (etatB == HIGH) {
-        target += k;
-        target = constrain( target , a , b);
+        target += enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
       else {
-        target -= k;
-        target = constrain( target , a , b);
+        target -= enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
     }
     else {
       if (etatB == HIGH) {
-        target -= k;
-        target = constrain( target , a , b);
+        target -= enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
       else {
-        target += k;
-        target = constrain( target , a , b);
+        target += enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
     }
   }
@@ -141,22 +188,22 @@ void encode() {
     etatB = digitalRead(encoder0PinB);
     if (etatB == HIGH) {
       if (etatA == HIGH) {
-        target -= k;
-        target = constrain( target , a , b);
+        target -= enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
       else {
-        target += k;
-        target = constrain( target , a , b);
+        target += enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
     }
     else {
       if (etatA == HIGH) {
-        target += k;
-        target = constrain( target , a , b);
+        target += enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
       else {
-        target -= k;
-        target = constrain( target , a , b);
+        target -= enc_step;
+        target = constrain( target , enc_min , enc_max);
       }
     }
   }
