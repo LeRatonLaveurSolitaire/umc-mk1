@@ -3,16 +3,16 @@ This is the repository of a universal motor controller (like washing machine mot
 
 # Pinout
 
-  A4 -> SDA
-  A5 -> SCL
-  D2 -> Zero Crossing Detection
-  D3 -> motor_speed
-  D4 -> fire_pin
-  D5 -> Encoder
-  D6 -> Encoder
-  D7 -> Encoder
-  D8 -> GND
-  D9 -> GND
+  * A4 -> SDA
+  * A5 -> SCL
+  * D2 -> Zero Crossing Detection
+  * D3 -> motor_speed
+  * D4 -> fire_pin
+  * D5 -> Encoder
+  * D6 -> Encoder
+  * D7 -> Encoder
+  * D8 -> GND
+  * D9 -> GND
 
 # Material
 
