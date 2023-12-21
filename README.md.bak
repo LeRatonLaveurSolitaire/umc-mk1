@@ -45,9 +45,4 @@ The PID variables can be changed at the beggening of the scetch in order to obta
 
 The thriac activation is controled by the Timer 2 with the OCR2A as control variable 
 
-# Board creation
-
-The board was made using easyEDA online editor, project can be found here : https://oshwlab.com/thomasboulanger2503/motor-controller
-Gcodes where created using FlatCam editor.
-
 
